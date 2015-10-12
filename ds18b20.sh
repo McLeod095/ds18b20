@@ -153,10 +153,6 @@ function favg() {
 	fi
 }
 
-function _sl() {
-	sleep $1
-}
-
 function start() {
 	init
 	discovery

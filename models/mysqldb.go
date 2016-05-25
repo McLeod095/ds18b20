@@ -1,13 +1,13 @@
-package	models
+package models
 
 import (
 	"database/sql"
-	_ "github.com/go-sql-driver/mysql"
 	"ds18b20/common"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 type Mysql struct {
-	db	*sql.DB
+	db *sql.DB
 }
 
 func NewDB(dsn string) *Mysql {
@@ -22,7 +22,7 @@ func (m *Mysql) Close() {
 	m.db.Close()
 }
 
-func (m *Mysql) AddTemp(id string, v common.Dimension) (err error){
+func (m *Mysql) AddTemp(id string, v common.Dimension) (err error) {
 	const query = "INSERT INTO ds18b20 (sensor_id, timestamp, value) VALUES(?,?,?)"
 
 	stmt, err := m.db.Prepare(query)
@@ -62,12 +62,12 @@ func (m *Mysql) GetAllForSensor(s string) (dimensions []*common.Dimension, err e
 func (m *Mysql) GetSensors() (sensors []string, err error) {
 	const query = "SELECT DISTINCT(sensor_id) FROM ds18b20"
 
-	rows,err := m.db.Query(query)
+	rows, err := m.db.Query(query)
 	if err != nil {
 		return
 	}
 
-	for rows.Next(){
+	for rows.Next() {
 		var s string
 		err = rows.Scan(&s)
 		if err != nil {
@@ -75,5 +75,16 @@ func (m *Mysql) GetSensors() (sensors []string, err error) {
 		}
 		sensors = append(sensors, s)
 	}
+	return
+}
+
+func (m *Mysql) GetLast(id string) (last common.Dimension, err error) {
+	const query = "SELECT timestamp, value FROM ds18b20 WHERE sensor_id = ? ORDER BY timestamp DESC LIMIT 1"
+
+	err = m.db.Query(query, id).Scan(&last.Timestamp, &last.Value)
+	if err != nil {
+		return
+	}
+
 	return
 }

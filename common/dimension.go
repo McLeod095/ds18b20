@@ -1,13 +1,13 @@
 package common
 
 import (
-	"time"
 	"fmt"
+	"time"
 )
 
 type Dimension struct {
 	Timestamp time.Time
-	Value	int
+	Value     int
 }
 
 func (d Dimension) String() string {
@@ -16,4 +16,11 @@ func (d Dimension) String() string {
 
 func NewDimension() *Dimension {
 	return &Dimension{}
+}
+
+func (s Dimension) Eq(d Dimension) bool {
+	if s.Timestamp == d.Timestamp && s.Value == d.Value {
+		return true
+	}
+	return false
 }

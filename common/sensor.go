@@ -1,24 +1,24 @@
 package common
 
 import (
-	"time"
 	"fmt"
 	"io/ioutil"
 	"strconv"
+	"time"
 )
 
 type Sensor struct {
-	ID	string
-	Average	float64
-	values	[]Dimension
-	Max	int
-	Path	string
+	ID      string
+	Average float64
+	values  []Dimension
+	Max     int
+	Path    string
 }
 
 func (s Sensor) String() string {
 	if len(s.values) > 0 {
 		return fmt.Sprintf("%s %.2f (%d)[%d]", s.ID, s.Average/1000.0, s.values[len(s.values)-1].Value, len(s.values))
-	}else{
+	} else {
 		return fmt.Sprintf("%s %.2f (0)[%d]", s.ID, s.Average/1000.0, len(s.values))
 	}
 }
@@ -29,7 +29,7 @@ func (s *Sensor) Update() (err error) {
 		return
 	}
 
-	value, err := strconv.Atoi(string(content[69:len(content)-1]))
+	value, err := strconv.Atoi(string(content[69 : len(content)-1]))
 	if err != nil {
 		return
 	}
@@ -44,7 +44,7 @@ func (s *Sensor) Update() (err error) {
 	for _, v := range s.values {
 		sum += v.Value
 	}
-	s.Average = float64(sum)/float64(len(s.values))
+	s.Average = float64(sum) / float64(len(s.values))
 	return
 }
 

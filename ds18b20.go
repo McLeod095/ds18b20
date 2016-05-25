@@ -1,16 +1,16 @@
 package main
 
 import (
-	"io"
-	"fmt"
-	"path"
-	"os"
 	"bufio"
-	"strings"
-	"time"
 	"ds18b20/common"
 	"ds18b20/models"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path"
+	"strings"
+	"time"
 )
 
 func RootHandler(w http.ResponseWriter, r *http.Request) {
@@ -33,6 +33,23 @@ func SensorsHandler(db *models.Mysql) http.Handler {
 		for _, v := range sensors {
 			fmt.Fprintf(w, "%s\n", v)
 		}
+	})
+}
+
+func SensorHandler(db *models.Mysql) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			http.Error(w, http.StatusText(405), 405)
+			return
+		}
+
+		dimension, err := db.GetLast("28-021500d05fff")
+		if err != nil {
+			http.Error(w, http.StatusText(500), 500)
+			return
+		}
+
+		fmt.Fprintf(w, "%s\n", dimension)
 	})
 }
 
@@ -74,7 +91,7 @@ func main() {
 	checktime := time.Tick(10 * time.Second)
 	printtime := time.Tick(10 * time.Second)
 
-	go func(){
+	go func() {
 		for _ = range checktime {
 			for _, v := range sensors {
 				go func(s *common.Sensor) {
@@ -96,5 +113,6 @@ func main() {
 	}()
 	http.HandleFunc("/", RootHandler)
 	http.Handle("/api/sensors", SensorsHandler(db))
+	http.Handle("/api/sensor/:id", SensorHandler(db))
 	http.ListenAndServe(":8088", nil)
 }

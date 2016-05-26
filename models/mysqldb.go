@@ -81,7 +81,7 @@ func (m *Mysql) GetSensors() (sensors []string, err error) {
 func (m *Mysql) GetLast(id string) (last common.Dimension, err error) {
 	const query = "SELECT timestamp, value FROM ds18b20 WHERE sensor_id = ? ORDER BY timestamp DESC LIMIT 1"
 
-	err = m.db.Query(query, id).Scan(&last.Timestamp, &last.Value)
+	err = m.db.QueryRow(query, id).Scan(&last.Timestamp, &last.Value)
 	if err != nil {
 		return
 	}

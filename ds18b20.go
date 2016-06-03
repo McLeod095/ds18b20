@@ -5,6 +5,8 @@ import (
 	"ds18b20/common"
 	"ds18b20/models"
 	"fmt"
+	//	"github.com/julienschmidt/httprouter"
+	"html/template"
 	"io"
 	"net/http"
 	"os"
@@ -13,8 +15,49 @@ import (
 	"time"
 )
 
-func RootHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello")
+func RootHandler(tpl *html.Template, db *common.Mysql) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := tpl.Execute(w, _)
+		if err != nil {
+			http.Error(w, http.StatusText(404), 404)
+			return
+		}
+	})
+}
+
+func EventHandler(b *common.Broker) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		flusher, ok := w.(http.Flusher)
+
+		if !ok {
+			http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		clientChan := make(chan []byte)
+		b.Add(clientChan)
+
+		defer func() {
+			b.Delete(clientChan)
+		}()
+
+		notify := w.(http.CloseNotifier).CloseNotify()
+
+		go func() {
+			<-notify
+			b.Delete(clientChan)
+		}()
+
+		for {
+			fmt.Fprintf(w, "%s\n\n", <-clientChan)
+			flusher.Flush()
+		}
+	})
 }
 
 func SensorsHandler(db *models.Mysql) http.Handler {
@@ -88,6 +131,12 @@ func main() {
 		panic(err)
 	}
 
+	indexTpl, err := template.New("index").ParseFiles("./index.html")
+	if err != nil {
+		panic(err)
+	}
+
+	broker := common.NewBroker()
 	checktime := time.Tick(10 * time.Second)
 	printtime := time.Tick(10 * time.Second)
 
@@ -107,11 +156,18 @@ func main() {
 		for _ = range printtime {
 			for _, v := range sensors {
 				fmt.Printf("%s last - %s\n", v, v.Last())
+				eventString := fmt.Sprintf("event: %s\ndata: %s", v.ID, v.Json())
+				broker.Event([]byte(eventString))
 			}
 			fmt.Println("---------------------")
 		}
 	}()
-	http.HandleFunc("/", RootHandler)
+
+	//	router := httprouter.New()
+	//	router.GET("/", RootHandler)
+	//	http.ListenAndServe(":8088", router)
+	http.Handle("/", RootHandler(indexTpl, db))
+	http.Handle("/event", EventHandler(broker))
 	http.Handle("/api/sensors", SensorsHandler(db))
 	http.Handle("/api/sensor/:id", SensorHandler(db))
 	http.ListenAndServe(":8088", nil)

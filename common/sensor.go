@@ -1,6 +1,7 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"strconv"
@@ -53,4 +54,12 @@ func (s Sensor) Last() (last Dimension) {
 		last = s.values[len(s.values)-1]
 	}
 	return
+}
+
+func (s Sensor) Json() string {
+	b, err := json.Marshal(s)
+	if err != nil {
+		return ""
+	}
+	return string(b)
 }

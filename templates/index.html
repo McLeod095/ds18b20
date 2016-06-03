@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>Index</title>
+	</head>
+	<script type="text/javascript">
+		window.onload = function() {
+			var source = new EventSource("event");
+			{{range .}}
+			source.addEventListener("{{.}}", function(e){
+				var obj = JSON.parse(e.data);
+				document.getElementById("{{.}}").innerHTML = obj.Average;
+			}, false);
+			{{end}}
+		};
+	</script>
+	<body>
+		<table>
+			<thead>
+				<tr>
+				{{range .}}<th>{{.}}</th>{{end}}
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+				{{range .}}<td id='{{.}}'>0</td>{{end}}
+				</tr>
+			</tbody>
+		</table>
+	</body>
+</html>

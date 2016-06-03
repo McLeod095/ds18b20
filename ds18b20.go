@@ -15,10 +15,22 @@ import (
 	"time"
 )
 
-func RootHandler(tpl *html.Template, db *common.Mysql) http.Handler {
+func RootHandler(tpl *template.Template, db *models.Mysql) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		err := tpl.Execute(w, _)
+		if tpl == nil {
+			http.Error(w, http.StatusText(404), 404)
+			return
+		}
+
+		sensors, err := db.GetSensors()
 		if err != nil {
+			http.Error(w, http.StatusText(500), 500)
+			return
+		}
+
+		err = tpl.Execute(w, sensors)
+		if err != nil {
+			fmt.Println(err)
 			http.Error(w, http.StatusText(404), 404)
 			return
 		}
@@ -131,7 +143,7 @@ func main() {
 		panic(err)
 	}
 
-	indexTpl, err := template.New("index").ParseFiles("./index.html")
+	indexTpl, err := template.New("").ParseGlob(path.Join("templates", "*.html"))
 	if err != nil {
 		panic(err)
 	}
@@ -166,7 +178,7 @@ func main() {
 	//	router := httprouter.New()
 	//	router.GET("/", RootHandler)
 	//	http.ListenAndServe(":8088", router)
-	http.Handle("/", RootHandler(indexTpl, db))
+	http.Handle("/", RootHandler(indexTpl.Lookup("index.html"), db))
 	http.Handle("/event", EventHandler(broker))
 	http.Handle("/api/sensors", SensorsHandler(db))
 	http.Handle("/api/sensor/:id", SensorHandler(db))

@@ -4,10 +4,11 @@ import (
 	"bufio"
 	"ds18b20/common"
 	"ds18b20/models"
+	//	"encoding/json"
 	"fmt"
-	//	"github.com/julienschmidt/httprouter"
 	"html/template"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path"
@@ -17,6 +18,7 @@ import (
 
 func RootHandler(tpl *template.Template, db *models.Mysql) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println("Request:", r)
 		if tpl == nil {
 			http.Error(w, http.StatusText(404), 404)
 			return
@@ -37,8 +39,38 @@ func RootHandler(tpl *template.Template, db *models.Mysql) http.Handler {
 	})
 }
 
+func HistoryHandler(db *models.Mysql) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println("Request /hist:", r)
+
+		sensor := r.FormValue("sensor")
+		if len(sensor) == 0 {
+			return
+		}
+		dimensions, err := db.History(sensor)
+		if err != nil {
+			return
+		}
+
+		val := "?(["
+		s := ""
+		for _, d := range dimensions {
+			val += fmt.Sprintf("[Date(\"%s\"),%f]%s\n", d.Timestamp, float64(d.Value)/1000.0, s)
+			//val += "[Date(" + string(d.Timestamp) + ")," + d.Value/1000.0 + "]" + s + "\n"
+			s = ","
+		}
+		val += "]);"
+		//	b, err := json.Marshal(dimensions)
+		//	if err != nil {
+		//		return
+		//	}
+		fmt.Fprintf(w, "%s", val)
+	})
+}
+
 func EventHandler(b *common.Broker) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println("Request:", r)
 		flusher, ok := w.(http.Flusher)
 
 		if !ok {
@@ -50,6 +82,7 @@ func EventHandler(b *common.Broker) http.Handler {
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("X-Accel-Buffering", "No")
 
 		clientChan := make(chan []byte)
 		b.Add(clientChan)
@@ -130,7 +163,7 @@ func discovery(dpath string) (sensors []*common.Sensor, err error) {
 
 func main() {
 	w1dir := "/sys/bus/w1/devices"
-	db := models.NewDB(fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8",
+	db := models.NewDB(fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
 		"ds18b20",
 		"ds18b20",
 		"127.0.0.1",
@@ -180,6 +213,7 @@ func main() {
 	//	http.ListenAndServe(":8088", router)
 	http.Handle("/", RootHandler(indexTpl.Lookup("index.html"), db))
 	http.Handle("/event", EventHandler(broker))
+	http.Handle("/history", HistoryHandler(db))
 	http.Handle("/api/sensors", SensorsHandler(db))
 	http.Handle("/api/sensor/:id", SensorHandler(db))
 	http.ListenAndServe(":8088", nil)

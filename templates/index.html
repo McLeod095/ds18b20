@@ -10,7 +10,7 @@
 			{{range .}}
 			source.addEventListener("{{.}}", function(e){
 				var obj = JSON.parse(e.data);
-				document.getElementById("{{.}}").innerHTML = obj.Average;
+				document.getElementById("{{.}}").innerHTML = (obj.Average/1000).toFixed(2) + '&deg;C';
 			}, false);
 			{{end}}
 		};
@@ -24,7 +24,7 @@
 			</thead>
 			<tbody>
 				<tr>
-				{{range .}}<td id='{{.}}'>0</td>{{end}}
+					{{range .}}<td id='{{.}}'>0</td>{{end}}
 				</tr>
 			</tbody>
 		</table>

@@ -11,7 +11,7 @@ type Mysql struct {
 }
 
 func NewDB(dsn string) *Mysql {
-	db, err := sql.Open("mysql", dsn)
+	db, err := sql.Open("mysql", dsn+"?charset=utf8&parseTime=true")
 	if err != nil {
 		panic(err)
 	}
@@ -34,7 +34,7 @@ func (m *Mysql) AddTemp(id string, v common.Dimension) (err error) {
 
 	_, err = stmt.Exec(
 		id,
-		v.Timestamp.Unix(),
+		v.Timestamp,
 		v.Value,
 	)
 	return
@@ -86,5 +86,24 @@ func (m *Mysql) GetLast(id string) (last common.Dimension, err error) {
 		return
 	}
 
+	return
+}
+
+func (m *Mysql) History(id string) (hist []common.Dimension, err error) {
+	const query = "SELECT timestamp, value FROM ds18b20 WHERE sensor_id = ? ORDER BY timestamp"
+
+	rows, err := m.db.Query(query, id)
+	if err != nil {
+		return
+	}
+
+	for rows.Next() {
+		var s common.Dimension
+		err = rows.Scan(&s.Timestamp, &s.Value)
+		if err != nil {
+			return nil, err
+		}
+		hist = append(hist, s)
+	}
 	return
 }
